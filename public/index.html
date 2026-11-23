@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Cap-App — Генератор, чекер и оценка юзернеймов</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg-main: #e6ebf2;
+      --bg-card: #e6ebf2;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --accent: #3b82f6;
+      --accent-dark: #1d4ed8;
+      --gold-1: #fbbf24;
+      --gold-2: #d97706;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --shadow-light: -8px -8px 18px rgba(255, 255, 255, 0.9);
+      --shadow-dark: 8px 8px 18px rgba(163, 177, 198, 0.55);
+      --inset-light: inset -5px -5px 12px rgba(255, 255, 255, 0.85);
+      --inset-dark: inset 5px 5px 12px rgba(163, 177, 198, 0.55);
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 20px 16px 52px;
+      line-height: 1.45;
+      overflow-x: hidden;
+    }
+
+    .splash-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: var(--bg-main);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      transition: opacity 0.3s ease;
+    }
+
+    .splash-screen.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .logo-letters {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 18px 20px;
+      border-radius: 26px;
+      background: var(--bg-card);
+      box-shadow: var(--shadow-light), var(--shadow-dark);
+    }
+
+    .logo-letter {
+      width: 38px;
+      height: 46px;
+      border-radius: 13px;
+      background: var(--bg-card);
+      box-shadow: var(--shadow-light), var(--shadow-dark);
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--text-main);
+      animation: letterBounce 0.55s ease both;
+    }
+
+    .logo-letter.accent {
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--gold-1), var(--gold-2));
+    }
+
+    @keyframes letterBounce {
+      0% { transform: translateY(16px) scale(0.86); }
+      100% { transform: translateY(0) scale(1); }
+    }
+
+    .splash-sub {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+    }
+
+    .app {
+      max-width: 560px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .neu-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-light), var(--shadow-dark);
+      padding: 22px 20px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mini-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--gold-1), var(--gold-2));
+      color: #ffffff;
+      font-weight: 900;
+      font-size: 18px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .brand-title { font-size: 22px; font-weight: 800; }
+    .brand-sub { font-size: 12px; color: var(--text-muted); }
+
+    .premium-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--gold-1), var(--gold-2));
+      border: none;
+      cursor: pointer;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      padding: 10px;
+      border-radius: var(--radius-lg);
+      background: var(--bg-main);
+      box-shadow: var(--inset-light), var(--inset-dark);
+    }
+
+    .tab-btn {
+      padding: 12px 6px;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .tab-btn.active {
+      background: var(--bg-card);
+      color: var(--text-main);
+      box-shadow: var(--shadow-light), var(--shadow-dark);
+    }
+
+    .section-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    .section-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+    .input-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    .neu-input {
+      flex: 1 1 190px;
+      padding: 15px 18px;
+      border: none;
+      border-radius: var(--radius-md);
+      background: var(--bg-main);
+      box-shadow: var(--inset-light), var(--inset-dark);
+      color: var(--text-main);
+      font-size: 15px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    .btn {
+      padding: 15px 20px;
+      border-radius: var(--radius-md);
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:disabled { opacity: 0.65; cursor: not-allowed; }
+    .btn-neu { background: var(--bg-card); color: var(--text-main); box-shadow: var(--shadow-light), var(--shadow-dark); }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: #ffffff; }
+    .btn-premium { background: linear-gradient(135deg, #f59e0b, #b45309); color: #ffffff; }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .toggle-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 16px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      box-shadow: var(--shadow-light), var(--shadow-dark);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .scan-box {
+      margin-top: 14px;
+      padding: 16px 18px;
+      border-radius: var(--radius-md);
+      background: var(--bg-main);
+      box-shadow: var(--inset-light), var(--inset-dark);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .scan-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .scan-ticker { font-family: monospace; font-size: 15px; font-weight: 800; color: var(--accent-dark); }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.25);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 45%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--gold-1));
+      animation: scanSweep 1.1s ease-in-out infinite;
+    }
+
+    @keyframes scanSweep {
+      0% { transform: translateX(-85%); }
+      100% { transform: translateX(230%); }
+    }
+
+    .list-stack { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+
+    .result-card {
+      padding: 16px 18px;
+      border-radius: var(--radius-md);
+      background: var(--bg-card);
+      box-shadow: var(--shadow-light), var(--shadow-dark);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .result-main-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .handle-name { font-size: 16px; font-weight: 800; }
+    .handle-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+    .badge {
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge-rare-premium { color: #ffffff; background: linear-gradient(135deg, var(--gold-1), var(--gold-2)); }
+    .badge-available { color: var(--success); background: rgba(22, 163, 74, 0.12); }
+    .badge-taken { color: var(--danger); background: rgba(220, 38, 38, 0.12); }
+    .badge-fragment { color: var(--accent-dark); background: rgba(37, 99, 235, 0.12); }
+
+    .valuation-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-main);
+      box-shadow: var(--inset-light), var(--inset-dark);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .score-pill { color: var(--accent-dark); }
+    .price-pill { color: var(--gold-2); }
+
+    .status-note {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      color: var(--text-muted);
+      background: var(--bg-main);
+      box-shadow: var(--inset-light), var(--inset-dark);
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="splashScreen" class="splash-screen">
+    <div class="logo-letters">
+      <div class="logo-letter">C</div>
+      <div class="logo-letter">A</div>
+      <div class="logo-letter">P</div>
+      <div class="logo-letter accent">A</div>
+      <div class="logo-letter accent">P</div>
+      <div class="logo-letter accent">P</div>
+    </div>
+    <div class="splash-sub">USERNAME ENGINE • TRIPLE CHECK • VALUATION</div>
+  </div>
+
+  <script>
+    (function forceDismissSplash() {
+      var done = false;
+      function dismiss() {
+        if (done) return;
+        done = true;
+        var el = document.getElementById('splashScreen');
+        if (!el) return;
+        el.classList.add('hide');
+        setTimeout(function () {
+          if (el && el.parentNode) el.parentNode.removeChild(el);
+        }, 350);
+      }
+      setTimeout(dismiss, 1100);
+      window.addEventListener('DOMContentLoaded', function () {
+        setTimeout(dismiss, 900);
+      });
+      window.addEventListener('load', function () {
+        setTimeout(dismiss, 400);
+      });
+    })();
+  </script>
+
+  <div class="app">
+    <header class="neu-card header">
+      <div class="brand-row">
+        <div class="mini-logo">C</div>
+        <div>
+          <div class="brand-title">Cap-App</div>
+          <div class="brand-sub">Генератор 6–8 • Тройная проверка • Оценка</div>
+        </div>
+      </div>
+      <button id="premiumBtn" class="premium-pill" type="button">
+        <span>★</span>
+        <span id="premiumLabel">Премиум (50 Stars)</span>
+      </button>
+    </header>
+
+    <nav class="tabs" aria-label="Разделы">
+      <button class="tab-btn active" data-tab="generator" type="button">Генератор</button>
+      <button class="tab-btn" data-tab="checker" type="button">Чекер</button>
+      <button class="tab-btn" data-tab="valuation" type="button">Оценка</button>
+      <button class="tab-btn" data-tab="market" type="button">Маркет</button>
+    </nav>
+
+    <section id="tab-generator" class="neu-card">
+      <div class="section-title">Генератор юзернеймов (6–8 символов)</div>
+      <div class="section-desc">
+        Перебирает кандидатов, проверяет Bot API, t.me и Fragment и отмечает редкие находки как <strong>1 редкий (премиум)</strong>.
+      </div>
+      <div class="controls-row">
+        <label class="toggle-chip">
+          <input id="rareOnlyToggle" type="checkbox" checked />
+          <span>Режим редких корней</span>
+        </label>
+        <button id="generateBtn" class="btn btn-primary" type="button">Найти и проверить</button>
+      </div>
+      <div id="genScanBox" class="scan-box hidden">
+        <div class="scan-top">
+          <span id="genScanStage">Подбираем и проверяем кандидатов...</span>
+          <span id="genScanTicker" class="scan-ticker">@vortexix</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill"></div></div>
+      </div>
+      <div id="genStatus" class="status-note">Нажми «Найти и проверить», чтобы запустить поиск.</div>
+      <div id="genResults" class="list-stack"></div>
+    </section>
+
+    <section id="tab-checker" class="neu-card hidden">
+      <div class="section-title">Тройная проверка юзернейма</div>
+      <div class="section-desc">
+        Проверяет наличие через Telegram Bot API, t.me и Fragment.
+      </div>
+      <div class="input-row">
+        <input id="checkInput" class="neu-input" type="text" placeholder="Например: vortexline или @handle" autocomplete="off" />
+        <button id="checkBtn" class="btn btn-primary" type="button">Проверить</button>
+      </div>
+      <div id="checkScanBox" class="scan-box hidden">
+        <div class="scan-top">
+          <span id="checkScanStage">Запрашиваем Bot API, t.me и Fragment...</span>
+          <span id="checkScanTicker" class="scan-ticker">@check</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill"></div></div>
+      </div>
+      <div id="checkStatus" class="status-note">Введи юзернейм для проверки.</div>
+      <div id="checkResult" class="list-stack"></div>
+    </section>
+
+    <section id="tab-valuation" class="neu-card hidden">
+      <div class="section-title">Оценка юзернейма</div>
+      <div class="section-desc">
+        Отдельный инструмент оценки: анализирует длину, редкие корни и символы, считает баллы, TON и Stars.
+      </div>
+      <div class="input-row">
+        <input id="valInput" class="neu-input" type="text" placeholder="Введи юзернейм для оценки (например: shadowix)" autocomplete="off" />
+        <button id="valBtn" class="btn btn-premium" type="button">Оценить</button>
+      </div>
+      <div id="valScanBox" class="scan-box hidden">
+        <div class="scan-top">
+          <span id="valScanStage">Анализируем корень, длину и символы...</span>
+          <span id="valScanTicker" class="scan-ticker">@handle</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill"></div></div>
+      </div>
+      <div id="valStatus" class="status-note">Введи юзернейм — покажу балл редкости, примерную цену и разбор.</div>
+      <div id="valResult" class="list-stack"></div>
+    </section>
+
+    <section id="tab-market" class="neu-card hidden">
+      <div class="section-title">Маркет лотов и кошелёк</div>
+      <div class="section-desc">
+        Привяжи адрес кошелька и выстави юзернейм на витрину.
+      </div>
+      <div class="input-row" style="margin-bottom: 18px;">
+        <input id="walletInput" class="neu-input" type="text" placeholder="Адрес кошелька (TON / Keeper)" autocomplete="off" />
+        <button id="saveWalletBtn" class="btn btn-neu" type="button">Сохранить</button>
+      </div>
+      <div class="input-row">
+        <input id="lotUsernameInput" class="neu-input" type="text" placeholder="Юзернейм лота" autocomplete="off" />
+        <input id="lotPriceInput" class="neu-input" type="number" min="0.1" step="0.1" placeholder="Цена в TON" />
+        <button id="createLotBtn" class="btn btn-premium" type="button">Выставить</button>
+      </div>
+      <div id="marketStatus" class="status-note">Загрузка списка лотов...</div>
+      <div id="marketList" class="list-stack"></div>
+    </section>
+  </div>
+
+  <script>
+    (function initApp() {
+      try {
+        var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        if (tg) {
+          tg.ready();
+          tg.expand();
+        }
+      } catch (_) {}
+
+      var userId = 7275857070;
+      var userName = 'User';
+
+      var RARE_ROOTS = [
+        'vortex', 'zenith', 'kobra', 'shadow', 'pulse', 'cyber', 'ghost', 'drift',
+        'venom', 'frost', 'storm', 'titan', 'blade', 'spark', 'noble', 'prime',
+        'apex', 'nova', 'aura', 'echo', 'flux', 'core', 'zero', 'onyx', 'volt'
+      ];
+      var SAMPLE_CANDIDATES = ['vortexon', 'shadowix', 'lynxcore', 'novapulse', 'driftfox', 'kobraven'];
+
+      function sleep(ms) {
+        return new Promise(function (resolve) { setTimeout(resolve, ms); });
+      }
+
+      function cleanHandle(raw) {
+        return String(raw || '').trim().replace(/^@+/, '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+      }
+
+      function evaluateUsername(username, apiData) {
+        var clean = cleanHandle(username);
+        var len = clean.length;
+        var matchedRoot = RARE_ROOTS.find(function (root) { return clean.indexOf(root) !== -1; }) || null;
+        var hasDigits = /\d/.test(clean);
+        var hasUnderscore = /_/.test(clean);
+
+        var score = 45;
+        var reasons = [];
+        if (len <= 6) { score += 22; reasons.push('длина ' + len + ' симв.'); }
+        else if (len <= 8) { score += 14; reasons.push('длина ' + len + ' симв.'); }
+        else { score -= 8; reasons.push('длина ' + len + ' симв.'); }
+
+        if (matchedRoot) { score += 22; reasons.push('корень "' + matchedRoot + '"'); }
+        if (!hasDigits && !hasUnderscore) { score += 10; reasons.push('чистые буквы'); }
+        else { score -= 10; reasons.push('цифры/_'); }
+
+        var isAvailable = apiData ? Boolean(apiData.available) : true;
+        score = Math.max(5, Math.min(99, score));
+        var estTon = Number(((score / 100) * 18 + (matchedRoot ? 4.5 : 0)).toFixed(1));
+        var estStars = Math.round(estTon * 120);
+        var verdict = score >= 82 ? 'Топ / Редкий актив' : (score >= 65 ? 'Хороший потенциал' : 'Базовый вариант');
+
+        var badge = apiData && apiData.badge
+          ? apiData.badge
+          : (isAvailable && (matchedRoot || len <= 6)
+              ? { code: 'rare_premium', label: '1 редкий (премиум)' }
+              : { code: isAvailable ? 'available' : 'taken', label: isAvailable ? 'Свободен' : 'Занят' });
+
+        return {
+          username: clean,
+          score: score,
+          estTon: estTon,
+          estStars: estStars,
+          verdict: verdict,
+          reasonsText: reasons.join(' • '),
+          badge: badge,
+          checks: apiData && apiData.checks ? apiData.checks : null
+        };
+      }
+
+      var tabButtons = document.querySelectorAll('.tab-btn');
+      var sections = {
+        generator: document.getElementById('tab-generator'),
+        checker: document.getElementById('tab-checker'),
+        valuation: document.getElementById('tab-valuation'),
+        market: document.getElementById('tab-market')
+      };
+
+      tabButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var target = btn.getAttribute('data-tab');
+          tabButtons.forEach(function (b) { b.classList.toggle('active', b === btn); });
+          Object.keys(sections).forEach(function (key) {
+            sections[key].classList.toggle('hidden', key !== target);
+          });
+          if (target === 'market') loadMarket();
+        });
+      });
+
+      function getBadgeClass(badge) {
+        if (!badge) return 'badge-available';
+        if (badge.code === 'rare_premium') return 'badge-rare-premium';
+        if (badge.code === 'fragment') return 'badge-fragment';
+        if (badge.code === 'taken') return 'badge-taken';
+        return 'badge-available';
+      }
+
+      function renderSearchCard(item) {
+        var card = document.createElement('div');
+        card.className = 'result-card';
+        var checks = item.checks || {};
+        var sourcesText = [
+          checks.botApi && checks.botApi.checked ? 'Bot API ✓' : 'Bot API —',
+          checks.tMe && checks.tMe.checked ? 't.me ✓' : 't.me —',
+          checks.fragment && checks.fragment.checked ? 'Fragment ✓' : 'Fragment —'
+        ].join(' • ');
+
+        card.innerHTML =
+          '<div class="result-main-row">' +
+            '<div>' +
+              '<div class="handle-name">@' + item.username + '</div>' +
